@@ -1,6 +1,6 @@
 import torch, torch.nn as nn
 
-class HandGestureModel(nn.Module):
+class HandGestureClassifier(nn.Module):
     """Classifier model to detect 6 gesture classes"""
     def __init__(self, input_size=63, num_classes=6):
         super.__init__()
