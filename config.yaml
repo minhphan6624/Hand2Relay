@@ -1,0 +1,12 @@
+gestures:
+  0: "light1_on"
+  1: "light1_off"
+  2: "light2_on"
+  3: "light2_off"
+  4: "all_on"
+  5: "all_off"
+
+sensor_settings:
+  max_hands: 1
+  confidence_threshold: 0.7
+  tracking_confidence: 0.5
