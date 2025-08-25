@@ -1,7 +1,7 @@
 import cv2
 import os
 from src.common.models import HandLandmarksDetector, label_dict_from_config_file
-from src.processing.HandDatasetWriter import HandDatasetWriter
+from src.processing.data_writer import HandDatasetWriter
 
 
 class GestureDataCollector:
