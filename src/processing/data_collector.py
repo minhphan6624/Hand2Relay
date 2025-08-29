@@ -1,5 +1,6 @@
 import cv2
 import os
+import argparse
 from src.common.models import HandLandmarksDetector, label_dict_from_config_file
 from src.processing.data_writer import HandDatasetWriter
 
@@ -73,5 +74,13 @@ class GestureDataCollector:
 
 
 if __name__ == "__main__":
-    # choose "train" / "val" / "test"
-    GestureDataCollector(config_path="config.yaml").collect(mode="train")
+    parser = argparse.ArgumentParser(description="Collect gesture data.")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="train",
+        choices=["train", "val", "test"],
+        help="Mode for data collection (train, val, or test)."
+    )
+    args = parser.parse_args()
+    GestureDataCollector(config_path="config.yaml").collect(mode=args.mode)
