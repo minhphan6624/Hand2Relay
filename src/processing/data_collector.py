@@ -9,22 +9,25 @@ class GestureDataCollector:
     def __init__(self, config_path="config.yaml"):
         # Construct the absolute path to config.yaml relative to this script's location
         script_dir = os.path.dirname(__file__)
-        # Corrected path: go up two levels to reach the project root
         abs_config_path = os.path.join(script_dir, "..", "..", config_path)
+
         labels = label_dict_from_config_file(abs_config_path)
         if not labels:
             raise RuntimeError(f"No gestures found in {abs_config_path}")
+
         self.labels = labels
         self.detector = HandLandmarksDetector()
 
-    def collect(self, mode="train"):
+    def collect(self):
+
         # Construct the absolute path for the data directory and CSV file
         script_dir = os.path.dirname(__file__)
-        # Corrected path: go up two levels to reach the project root, then into src/data
         data_dir = os.path.join(script_dir, "..", "..", "src", "data")
         os.makedirs(data_dir, exist_ok=True)
+
+        # Construct csv filename
         writer = HandDatasetWriter(
-            os.path.join(data_dir, f"landmarks_{mode}.csv"))
+            os.path.join(data_dir, "landmarks_all.csv"))
 
         cap = cv2.VideoCapture(0)
         current_lbl, recording = None, False
@@ -59,9 +62,7 @@ class GestureDataCollector:
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):         # Quit if "q" is pressed
                 break
-
-            # Otherwise, if key is between "a" and "f" (alphabetically), label the frame
-            if ord("a") <= key <= ord("f"):
+            elif ord("a") <= key <= ord("f"):
                 lbl = key - ord("a")
                 if lbl in self.labels:
                     # Toggle Recording for this label
@@ -74,13 +75,4 @@ class GestureDataCollector:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Collect gesture data.")
-    parser.add_argument(
-        "--mode",
-        type=str,
-        default="train",
-        choices=["train", "val", "test"],
-        help="Mode for data collection (train, val, or test)."
-    )
-    args = parser.parse_args()
-    GestureDataCollector(config_path="config.yaml").collect(mode=args.mode)
+    GestureDataCollector(config_path="config.yaml").collect()
