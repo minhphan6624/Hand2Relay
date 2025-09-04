@@ -4,5 +4,5 @@ mediapipe
 pyyaml
 pyserial
 pandas
-sklearn
+scikit-learn
 matplotlib

@@ -28,9 +28,6 @@ def prepare_data_for_training(input_csv_path: str = '../src/data/landmarks_all.c
         return
 
     # --- 2. Data Preprocessing: Normalization ---
-    # Based on the PDF and model definition, the input size is 63 features (21 landmarks * 3 coords).
-    # The existing data_preparation.py script added extra features, which would break the model.
-    # Therefore, we will only apply normalization to the original 63 features.
     print("\n--- 2. Data Preprocessing: Normalization ---")
     X = df.drop('label', axis=1)
     y = df['label']
@@ -46,14 +43,12 @@ def prepare_data_for_training(input_csv_path: str = '../src/data/landmarks_all.c
 
     # --- 3. Data Splitting ---
     print("\n--- 3. Data Splitting ---")
+
     # Split into training (70%) and temp (30%)
-    # Using stratify to maintain class distribution
     X_train, X_temp, y_train, y_temp = train_test_split(
         X_scaled_df, y, test_size=0.3, random_state=42, stratify=y)
 
     # Split temp into validation (15%) and test (15%)
-    # test_size=0.5 means 50% of the temp set, which is 0.5 * 0.3 = 0.15 of the original set
-    # Using stratify to maintain class distribution
     X_val, X_test, y_val, y_test = train_test_split(
         X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp)
 
@@ -75,10 +70,3 @@ def prepare_data_for_training(input_csv_path: str = '../src/data/landmarks_all.c
     print(f"- {os.path.join(output_dir, 'landmarks_train.csv')}")
     print(f"- {os.path.join(output_dir, 'landmarks_val.csv')}")
     print(f"- {os.path.join(output_dir, 'landmarks_test.csv')}")
-
-if __name__ == "__main__":
-    # This script is intended to be run as part of a larger process.
-    # If you need to run it directly, uncomment the line below and ensure
-    # 'src/data/landmarks_all.csv' exists.
-    # prepare_data_for_training()
-    pass

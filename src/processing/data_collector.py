@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from common.models import HandLandmarksDetector, label_dict_from_config_file
-from processing.data_writer import HandDatasetWriter
+from data_writer import HandDatasetWriter
 
 class GestureDataCollector:
     def __init__(self, config_path="config.yaml"):
