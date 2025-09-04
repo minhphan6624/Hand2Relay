@@ -1,55 +1,37 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-import seaborn as sns
 import os
 
-
-def preprocess_and_visualize_data():
+def prepare_data_for_training(input_csv_path: str = '../src/data/landmarks_all.csv',
+                              output_dir: str = '../src/data/'):
     """
-    Loads, preprocesses, and visualizes hand gesture data.
-    Generates gesture distribution, PCA, and t-SNE plots.
+    Loads, preprocesses (normalizes), and splits hand gesture data into training, validation, and test sets.
     """
-    # Ensure results directory exists
-    if not os.path.exists('../results'):
-        os.makedirs('../results')
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
 
     # --- 1. Setup and Data Loading ---
     print("--- 1. Setup and Data Loading ---")
     try:
-        df = pd.read_csv('../src/data/landmarks_all.csv')
-        print("Dataset loaded successfully.")
+        df = pd.read_csv(input_csv_path)
+        print(f"Dataset loaded successfully from {input_csv_path}.")
         print(f"Shape of the dataset: {df.shape}")
         print("\nFirst 5 rows:")
         print(df.head())
     except FileNotFoundError:
-        print("Error: landmarks_all.csv not found. Make sure the file is in the correct directory.")
+        print(f"Error: {input_csv_path} not found. Make sure the file is in the correct directory.")
         return
     except Exception as e:
         print(f"An error occurred during data loading: {e}")
         return
 
-    # --- 2. Initial Data Exploration: Gesture Distribution ---
-    print("\n--- 2. Initial Data Exploration: Gesture Distribution ---")
-    gesture_counts = df['label'].value_counts()
-
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x=gesture_counts.index,
-                y=gesture_counts.values, palette='viridis')
-    plt.title('Distribution of Hand Gestures')
-    plt.xlabel('Gesture Label')
-    plt.ylabel('Number of Samples')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig('../results/gesture_distribution.png')
-    print("Gesture distribution plot saved to ../results/gesture_distribution.png")
-    # plt.show() # In a script, we don't typically call plt.show() if saving
-
-    # --- 3. Data Preprocessing: Feature Engineering and Normalization ---
-    print("\n--- 3. Data Preprocessing: Feature Engineering and Normalization ---")
+    # --- 2. Data Preprocessing: Normalization ---
+    # Based on the PDF and model definition, the input size is 63 features (21 landmarks * 3 coords).
+    # The existing data_preparation.py script added extra features, which would break the model.
+    # Therefore, we will only apply normalization to the original 63 features.
+    print("\n--- 2. Data Preprocessing: Normalization ---")
     X = df.drop('label', axis=1)
     y = df['label']
 
@@ -57,73 +39,46 @@ def preprocess_and_visualize_data():
     X_scaled = scaler.fit_transform(X)
     X_scaled_df = pd.DataFrame(X_scaled, columns=X.columns)
 
-    n_samples = X_scaled_df.shape[0]
-    n_landmarks = 21
-    n_features_per_landmark = 3
+    print("Normalization complete.")
+    print(f"Shape of normalized data: {X_scaled_df.shape}")
+    print("\nFirst 5 rows of normalized data:")
+    print(X_scaled_df.head())
 
-    X_reshaped = X_scaled_df.values.reshape(
-        n_samples, n_landmarks, n_features_per_landmark)
-    wrist_landmarks = X_reshaped[:, 0, :]
+    # --- 3. Data Splitting ---
+    print("\n--- 3. Data Splitting ---")
+    # Split into training (70%) and temp (30%)
+    # Using stratify to maintain class distribution
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X_scaled_df, y, test_size=0.3, random_state=42, stratify=y)
 
-    distances_from_wrist = []
-    for i in range(1, n_landmarks):
-        landmark_i = X_reshaped[:, i, :]
-        dist = np.linalg.norm(landmark_i - wrist_landmarks, axis=1)
-        distances_from_wrist.append(dist)
+    # Split temp into validation (15%) and test (15%)
+    # test_size=0.5 means 50% of the temp set, which is 0.5 * 0.3 = 0.15 of the original set
+    # Using stratify to maintain class distribution
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp)
 
-    distances_df = pd.DataFrame(np.array(distances_from_wrist).T, columns=[
-                                f'dist_wrist_lmk{i}' for i in range(1, n_landmarks)])
-    X_processed = pd.concat([X_scaled_df, distances_df], axis=1)
+    print(f"Training set shape: {X_train.shape}, Labels shape: {y_train.shape}")
+    print(f"Validation set shape: {X_val.shape}, Labels shape: {y_val.shape}")
+    print(f"Test set shape: {X_test.shape}, Labels shape: {y_test.shape}")
 
-    print("Data preprocessing complete.")
-    print(f"Shape of processed data: {X_processed.shape}")
-    print("\nFirst 5 rows of processed data:")
-    print(X_processed.head())
+    # Combine features and labels for saving
+    train_df = pd.concat([X_train, y_train.reset_index(drop=True)], axis=1)
+    val_df = pd.concat([X_val, y_val.reset_index(drop=True)], axis=1)
+    test_df = pd.concat([X_test, y_test.reset_index(drop=True)], axis=1)
 
-    # --- 4. Dimensionality Reduction (PCA and t-SNE) ---
-    print("\n--- 4. Dimensionality Reduction (PCA and t-SNE) ---")
-    pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(X_processed)
-    pca_df = pd.DataFrame(data=X_pca, columns=['PCA1', 'PCA2'])
-    pca_df['label'] = y.values
+    # Save the datasets
+    train_df.to_csv(os.path.join(output_dir, 'landmarks_train.csv'), index=False)
+    val_df.to_csv(os.path.join(output_dir, 'landmarks_val.csv'), index=False)
+    test_df.to_csv(os.path.join(output_dir, 'landmarks_test.csv'), index=False)
 
-    tsne = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=300)
-    X_tsne = tsne.fit_transform(X_processed)
-    tsne_df = pd.DataFrame(data=X_tsne, columns=['tSNE1', 'tSNE2'])
-    tsne_df['label'] = y.values
-
-    print("Dimensionality reduction complete.")
-
-    # --- 5. Visualization of Reduced Dimensions ---
-    print("\n--- 5. Visualization of Reduced Dimensions ---")
-    plt.figure(figsize=(10, 7))
-    sns.scatterplot(x='PCA1', y='PCA2', hue='label',
-                    data=pca_df, palette='viridis', s=50, alpha=0.7)
-    plt.title('PCA of Hand Gestures')
-    plt.xlabel('Principal Component 1')
-    plt.ylabel('Principal Component 2')
-    plt.legend(title='Gesture')
-    plt.grid(True)
-    plt.savefig('../results/pca_visualization.png')
-    print("PCA visualization plot saved to ../results/pca_visualization.png")
-    # plt.show()
-
-    plt.figure(figsize=(10, 7))
-    sns.scatterplot(x='tSNE1', y='tSNE2', hue='label',
-                    data=tsne_df, palette='viridis', s=50, alpha=0.7)
-    plt.title('t-SNE of Hand Gestures')
-    plt.xlabel('t-SNE Component 1')
-    plt.ylabel('t-SNE Component 2')
-    plt.legend(title='Gesture')
-    plt.grid(True)
-    plt.savefig('../results/tsne_visualization.png')
-    print("t-SNE visualization plot saved to ../results/tsne_visualization.png")
-    # plt.show()
-
-    # --- 6. Conclusion ---
-    print("\n--- 6. Conclusion ---")
-    print("Data processing and visualization complete. Check the 'results/' directory for plots.")
-
+    print(f"Data splitting complete. Saved to:")
+    print(f"- {os.path.join(output_dir, 'landmarks_train.csv')}")
+    print(f"- {os.path.join(output_dir, 'landmarks_val.csv')}")
+    print(f"- {os.path.join(output_dir, 'landmarks_test.csv')}")
 
 if __name__ == "__main__":
-    preprocess_and_visualize_data()
+    # This script is intended to be run as part of a larger process.
+    # If you need to run it directly, uncomment the line below and ensure
+    # 'src/data/landmarks_all.csv' exists.
+    # prepare_data_for_training()
+    pass
