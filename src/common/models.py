@@ -53,7 +53,7 @@ class HandGestureClassifier(nn.Module):
 
     @torch.no_grad()
     def predict(self, x, thresh=0.7):
-        probs = torch.softmax(self(x), dim=1)
+        probs = torch.softmax(self.forward(x), dim=1)
         max_p, pred = torch.max(probs, 1)
         return pred if max_p.item() >= thresh else torch.tensor(-1)
 
