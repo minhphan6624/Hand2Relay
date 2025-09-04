@@ -14,8 +14,11 @@ class HandDatasetWriter:
         new_csv_path = f"{base}_{timestamp}{ext}"
 
         os.makedirs(os.path.dirname(new_csv_path), exist_ok=True)
+
+        
         self.f = open(new_csv_path, "w", newline="", encoding="utf-8")
         self.w = csv.writer(self.f)
+        
         header = [f"{ax}{i}" for i in range(21) for ax in ("x", "y", "z")]
         self.w.writerow(header + ["label"])
         self.count = 0
