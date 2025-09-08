@@ -4,9 +4,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import os
 import sys
+from typing import List
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from src.common.models import normalize_landmarks
+
 
 def augment_landmarks(landmarks_flat: np.ndarray, noise_std: float = 0.01, max_rotation_deg: float = 5.0, num_augmentations: int = 5) -> List[np.ndarray]:
     """
