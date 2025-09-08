@@ -82,12 +82,12 @@ class GestureDataCollector:
             elif ord("a") <= key <= ord("f"):
 
                 new_label = key - ord('a')
-                if new_label in self.gesture_labels:
-                    if current_label == new_label:
+                if new_label in self.labels:
+                    if current_lbl == new_label:
                         # Toggle recording for current label
                         is_recording = not is_recording
                         
-                        gesture_name = self.gesture_labels[new_label]
+                        gesture_name = self.labels[new_label]
 
                         if is_recording:
                             frame_count = 0
@@ -96,10 +96,10 @@ class GestureDataCollector:
                             print(f"Recording stopped. Wrote {frame_count} samples")
                     else:
                         # Pick new gesture
-                        current_label = new_label
+                        current_lbl = new_label
                         is_recording = False
                         frame_count = 0
-                        gesture_name = self.gesture_labels[new_label]
+                        gesture_name = self.labels[new_label]
                         print(f"Gesture picked: {gesture_name}")
 
         cap.release()
