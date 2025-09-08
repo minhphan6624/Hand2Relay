@@ -31,7 +31,7 @@ class HandGestureTrainer:
             raise ValueError("No gestures found in config file or config file not found.")
 
         # Initialize model
-        self.model = HandGestureClassifier(input_size=63, num_classes=self.num_classes).to(self.device)
+        self.model = HandGestureClassifier(input_size=60, num_classes=self.num_classes).to(self.device) # Changed input_size to 60
         self.criterion = CrossEntropyLoss()
         self.optimizer = Adam(self.model.parameters(), lr=0.001)
         self.early_stopper = EarlyStopper(patience=20, min_delta=0.001) # Adjusted patience and delta
