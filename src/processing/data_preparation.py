@@ -4,8 +4,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import os
 
-def prepare_data_for_training(input_csv_path: str = '../src/data/landmarks_all.csv',
-                              output_dir: str = '../src/data/'):
+def prepare_data_for_training(input_csv_path: str = 'src/data/landmarks_all.csv',
+                              output_dir: str = 'src/data/'):
     """
     Loads, preprocesses (normalizes), and splits hand gesture data into training, validation, and test sets.
     """
@@ -32,6 +32,19 @@ def prepare_data_for_training(input_csv_path: str = '../src/data/landmarks_all.c
     X = df.drop('label', axis=1)
     y = df['label']
 
+    # Drop rows with any NaN values that might have appeared during initial processing
+    # This is crucial as StandardScaler cannot handle NaNs
+    initial_rows = X.shape[0]
+    df_cleaned = pd.concat([X, y], axis=1).dropna()
+    X = df_cleaned.drop('label', axis=1)
+    y = df_cleaned['label']
+    if df_cleaned.shape[0] < initial_rows:
+        print(f"Dropped {initial_rows - df_cleaned.shape[0]} rows containing NaN values.")
+
+    # Ensure all feature columns are numeric before scaling
+    X = X.apply(pd.to_numeric, errors='coerce')
+    X = X.dropna() # Drop any rows that became NaN due to coercion
+
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     X_scaled_df = pd.DataFrame(X_scaled, columns=X.columns)
@@ -46,20 +59,20 @@ def prepare_data_for_training(input_csv_path: str = '../src/data/landmarks_all.c
 
     # Split into training (70%) and temp (30%)
     X_train, X_temp, y_train, y_temp = train_test_split(
-        X_scaled_df, y, test_size=0.3, random_state=42, stratify=y)
+        X_scaled_df, y, test_size=0.3, random_state=42) 
 
     # Split temp into validation (15%) and test (15%)
     X_val, X_test, y_val, y_test = train_test_split(
-        X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp)
+        X_temp, y_temp, test_size=0.5, random_state=42) 
 
     print(f"Training set shape: {X_train.shape}, Labels shape: {y_train.shape}")
     print(f"Validation set shape: {X_val.shape}, Labels shape: {y_val.shape}")
     print(f"Test set shape: {X_test.shape}, Labels shape: {y_test.shape}")
 
-    # Combine features and labels for saving
-    train_df = pd.concat([X_train, y_train.reset_index(drop=True)], axis=1)
-    val_df = pd.concat([X_val, y_val.reset_index(drop=True)], axis=1)
-    test_df = pd.concat([X_test, y_test.reset_index(drop=True)], axis=1)
+    # Combine features and labels for saving, ensuring index alignment
+    train_df = pd.concat([X_train.reset_index(drop=True), y_train.reset_index(drop=True)], axis=1)
+    val_df = pd.concat([X_val.reset_index(drop=True), y_val.reset_index(drop=True)], axis=1)
+    test_df = pd.concat([X_test.reset_index(drop=True), y_test.reset_index(drop=True)], axis=1)
 
     # Save the datasets
     train_df.to_csv(os.path.join(output_dir, 'landmarks_train.csv'), index=False)
@@ -70,3 +83,6 @@ def prepare_data_for_training(input_csv_path: str = '../src/data/landmarks_all.c
     print(f"- {os.path.join(output_dir, 'landmarks_train.csv')}")
     print(f"- {os.path.join(output_dir, 'landmarks_val.csv')}")
     print(f"- {os.path.join(output_dir, 'landmarks_test.csv')}")
+
+if __name__ == "__main__":
+    prepare_data_for_training()
