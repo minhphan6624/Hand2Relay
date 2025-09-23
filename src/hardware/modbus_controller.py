@@ -1,15 +1,14 @@
 import serial
 from .base_controller import HardwareController
 
-# Command Frames
-RELAY1_ON =  [1, 5, 0, 0, 0xFF, 0, 0x8C, 0x3A]  
-RELAY1_OFF = [1, 5, 0, 0, 0,    0, 0xCD, 0xCA]  
+RELAY_1_ON =  [1, 5, 0, 0, 0xFF, 0, 0x8C, 0x3A]  
+RELAY_1_OFF = [1, 5, 0, 0, 0,    0, 0xCD, 0xCA]  
 
-RELAY2_ON =  [1, 5, 0, 1, 0xFF, 0, 0xDD, 0xFA]  
-RELAY2_OFF = [1, 5, 0, 1, 0,    0, 0x9C, 0x0A]  
+RELAY_2_ON =  [1, 5, 0, 1, 0xFF, 0, 0xDD, 0xFA]  
+RELAY_2_OFF = [1, 5, 0, 1, 0,    0, 0x9C, 0x0A]  
 
-RELAY3_ON =  [1, 5, 0, 2, 0xFF, 0, 0x2D, 0xFA]  
-RELAY3_OFF = [1, 5, 0, 2, 0,    0, 0x6C, 0x0A]  
+RELAY_3_ON =  [1, 5, 0, 2, 0xFF, 0, 0x2D, 0xFA]  
+RELAY_3_OFF = [1, 5, 0, 2, 0,    0, 0x6C, 0x0A]  
 
 CMD_DICT = {
     (1, True): RELAY1_ON,
