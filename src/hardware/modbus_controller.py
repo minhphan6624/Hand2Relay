@@ -1,6 +1,8 @@
 import serial
 from .base_controller import HardwareController
 
+# Command frame [SLAVE_ID, 02, AddrHi, AddrLo,  FF/00, 00, CRC_Lo, CRC_Hi] 
+
 RELAY_1_ON =  [1, 5, 0, 0, 0xFF, 0, 0x8C, 0x3A]  
 RELAY_1_OFF = [1, 5, 0, 0, 0,    0, 0xCD, 0xCA]  
 
