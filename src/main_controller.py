@@ -1,24 +1,20 @@
 import os
 import cv2
 import time
-import yaml
 import argparse
 import torch
-import numpy as np
 import sys
-import datetime
-import platform
-import serial
-import subprocess
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 from common.models import HandLandmarksDetector, HandGestureClassifier, label_dict_from_config_file, normalize_landmarks
+from common.gesture_action_mapper import GestureActionMapper
+from hardware.base_controller import HardwareController
 from hardware.esp32_controller import ESP32Controller
 from hardware.modbus_controller import ModbusController
 
 class GestureControlSystem:
-    def __init__(self, model_path: str, config_path: str = 'config.yaml', port: str = None, simulation: bool = True):
+    def __init__(self, model_path: str, config_path: str = 'config.yaml', port: str = None, simulation: bool = True, mode: str = 'esp32'):
         
         self.detector = HandLandmarksDetector()
         self.labels = label_dict_from_config_file(config_path)
@@ -26,40 +22,48 @@ class GestureControlSystem:
         if self.num_classes == 0:
             raise ValueError("No gestures found in config file or config file not found.")
 
-        self.model = HandGestureClassifier(60, self.num_classes) # Updated input_size to 60
-        self.model.load_state_dict(torch.load(model_path, map_location='cpu'))
+        self.model = HandGestureClassifier(60, self.num_classes) 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.model.to(self.device)
         self.model.eval()
         print(f"[INFO] Model loaded from {model_path}")
 
-        self.port = port
-        self.simulate = simulation
-        self.arduino_controller = None
-        if not self.simulate:
+        self.simulation = simulation
+        self.mode = mode.lower()
+        
+        hardware_controller: HardwareController = None
+        if not self.simulation:
             if port is None:
                 raise ValueError("Serial port must be specified when not in simulation mode.")
+            elif self.mode == "esp32":
+                hardware_controller = ESP32Controller(port)
+            elif self.mode == "modbus":
+                hardware_controller = ModbusController(port)
+            else:
+                raise ValueError(f"Unknown mode: {self.mode}")
+        
+        self.action_mapper = GestureActionMapper(hardware_controller, self.labels)
 
-        self.current_gesture = "None"
         self.last_executed_gesture = "None"
         self.last_execution_time = time.time()
         self.debounce_delay = 1.0 # seconds to prevent rapid re-execution of the same gesture
 
     def _execute_gesture_action(self, gesture_name: str):
+        # Debounce: prevent rapid re-execution
         if gesture_name == self.last_executed_gesture and (time.time() - self.last_execution_time) < self.debounce_delay:
-            return # Debounce: prevent rapid re-execution
+            return 
 
         print(f"[ACTION] Detected: {gesture_name}")
-        if self.simulate:
-            print(f"[SIMULATION] Executing action for: {gesture_name}")
-        else:
-            # This is where you'd map gesture_name to Arduino commands
-            # For now, we'll use a simple mapping, assuming Arduino understands these strings
-            self.arduino_controller.send_command(gesture_name)
+        self.action_mapper.execute_action(gesture_name, self.simulation)
 
         self.last_executed_gesture = gesture_name
         self.last_execution_time = time.time()
 
     def run(self):
         cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         if not cap.isOpened():
             print("[ERROR] Could not open webcam.")
             return
@@ -79,14 +83,10 @@ class GestureControlSystem:
 
                 predicted_gesture_name = "None"
                 if lmks_list:
-                    # Assuming only one hand is detected (max_num_hands=1)
                     raw_landmarks = lmks_list[0]
-                    
-                    # Apply the same normalization as during training
-                    normalized_lmks = normalize_landmarks(raw_landmarks)
+                    normalized_lmks = normalize_landmarks(raw_landmarks) # Apply the same normalization as during training
                     
                     # Convert to tensor and drop x0, y0, z0 (wrist) features
-                    # The first 3 elements (x0, y0, z0) are now redundant after normalization
                     landmarks_tensor = torch.tensor(normalized_lmks[3:]).float().unsqueeze(0)
                     
                     with torch.no_grad():
@@ -94,7 +94,7 @@ class GestureControlSystem:
                     
                     if prediction_id != -1: # -1 means confidence threshold not met
                         predicted_gesture_name = self.labels.get(prediction_id, "Unknown")
-                        self._execute_gesture_action(predicted_gesture_name)
+                        self._execute_gesture_action(predicted_gesture_name)    
                     else:
                         predicted_gesture_name = "Low Confidence"
 
@@ -111,9 +111,9 @@ class GestureControlSystem:
         finally:
             cap.release()
             cv2.destroyAllWindows()
-            if self.arduino_controller:
-                self.arduino_controller.all_off() # Ensure all devices are off on exit
-                self.arduino_controller.close()
+            if self.action_mapper.controller: # Check if a controller was initialized
+                self.action_mapper.controller.all_off() # Ensure all devices are off on exit
+                self.action_mapper.controller.close()
             print("[INFO] Application closed.")
 
 
@@ -124,9 +124,11 @@ def main():
     parser.add_argument('--config', type=str, default='config.yaml',
                         help='Path to the configuration YAML file')
     parser.add_argument('--port', type=str, default=None,
-                        help='Serial port for Arduino (e.g., COM3 on Windows, /dev/ttyUSB0 on Linux/macOS)')
+                        help='Serial port for hardware (e.g., COM3 on Windows, /dev/ttyUSB0 on Linux/macOS)')
     parser.add_argument('--simulation', action='store_true',
-                        help='Run in simulation mode (print commands instead of sending to Arduino)')
+                        help='Run in simulation mode (print commands instead of sending to hardware)')
+    parser.add_argument('--mode', type=str, default='esp32', choices=['esp32', 'modbus'],
+                        help='Hardware control mode: "esp32" or "modbus"')
 
     args = parser.parse_args()
 
@@ -143,7 +145,8 @@ def main():
             model_path=args.model,
             config_path=args.config,
             port=args.port,
-            simulate=args.simulation
+            simulation=args.simulation,
+            mode=args.mode
         )
         system.run()
     except ValueError as e:
