@@ -31,7 +31,6 @@ class ArduinoController:
         print(f"[SIM] Closing Arduino connection on {self.port}")
         # if self.ser: self.ser.close()
 
-
 class GestureControlSystem:
     def __init__(self, model_path: str, config_path: str, port: str = None, simulate: bool = True):
         self.detector = HandLandmarksDetector()
