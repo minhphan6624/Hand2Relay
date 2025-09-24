@@ -21,22 +21,21 @@ This project develops a touchless relay control system using real-time hand gest
 ├── firmware/
 │   └── esp32.ino               # Arduino firmware for ESP32
 ├── src/
-│   ├── common/
-│   │   ├── models.py           # HandLandmarksDetector, HandGestureClassifier, utilities
-│   │   └── gesture_action_mapper.py # Maps gestures to hardware actions
-│   ├── data/                   # Stores collected hand landmark datasets (CSV)
-│   ├── hardware/
-│   │   ├── base_controller.py  # Abstract base class for hardware controllers
-│   │   ├── esp32_controller.py # PC-side controller for ESP32 via UART
-│   │   └── modbus_controller.py# PC-side controller for Modbus RTU via RS485
-│   ├── processing/
-│   │   ├── data_collector.py   # Script for collecting hand gesture data
-│   │   └── ...                 # Other data processing scripts
-│   ├── train/
-│   │   ├── models/             # Stores trained PyTorch models (.pth)
-│   │   └── trainer.py          # Script for training the gesture classification model
-│   └── main_controller.py      # Main entry point for real-time gesture control
-└── AIO2025-AIoT-GestureRecognition.pdf # Project documentation (Vietnamese)
+   ├── common/
+   │   ├── models.py           # HandLandmarksDetector, HandGestureClassifier, utilities
+   │   └── gesture_action_mapper.py # Maps gestures to hardware actions
+   ├── data/                   # Stores collected hand landmark datasets (CSV)
+   ├── hardware/
+   │   ├── base_controller.py  # Abstract base class for hardware controllers
+   │   ├── esp32_controller.py # PC-side controller for ESP32 via UART
+   │   └── modbus_controller.py# PC-side controller for Modbus RTU via RS485
+  ├── processing/
+   │   ├── data_collector.py   # Script for collecting hand gesture data
+   │   └── ...                 # Other data processing scripts
+   ├── train/
+   │   ├── models/             # Stores trained PyTorch models (.pth)
+   │   └── trainer.py          # Script for training the gesture classification model
+   └── main_controller.py      # Main entry point for real-time gesture control
 ```
 
 ## Setup
