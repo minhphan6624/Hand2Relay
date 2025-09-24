@@ -1,17 +1,25 @@
-import cv2
-import torch
-import argparse
 import os
-import sys
+import cv2
 import time
+import yaml
+import argparse
+import torch
+import numpy as np
+import sys
+import datetime
+import platform
+import serial
+import subprocess
 
-# Add parent directory to path for module imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 from common.models import HandLandmarksDetector, HandGestureClassifier, label_dict_from_config_file, normalize_landmarks
+from hardware.esp32_controller import ESP32Controller
+from hardware.modbus_controller import ModbusController
 
 class GestureControlSystem:
-    def __init__(self, model_path: str, config_path: str, port: str = None, simulate: bool = True):
+    def __init__(self, model_path: str, config_path: str = 'config.yaml', port: str = None, simulation: bool = True):
+        
         self.detector = HandLandmarksDetector()
         self.labels = label_dict_from_config_file(config_path)
         self.num_classes = len(self.labels)
@@ -23,12 +31,12 @@ class GestureControlSystem:
         self.model.eval()
         print(f"[INFO] Model loaded from {model_path}")
 
-        self.simulate = simulate
+        self.port = port
+        self.simulate = simulation
         self.arduino_controller = None
         if not self.simulate:
             if port is None:
                 raise ValueError("Serial port must be specified when not in simulation mode.")
-            self.arduino_controller = ArduinoController(port) # Will be replaced with actual pyserial logic
 
         self.current_gesture = "None"
         self.last_executed_gesture = "None"

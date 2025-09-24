@@ -26,6 +26,13 @@ class ModbusController:
         self.ser = serial.Serial(port, baudrate=9600, timeout=1)
         print(f"[INFO] Connected to Modbus device on port {port}")
 
+    def _send_command(self, command):
+        try:
+            self.ser.write(bytearray(command))
+            print(f"[INFO] Command sent: {command}")
+        except Exception as e:
+            print(f"[ERROR] Failed to send command: {e}")
+
     def switch(self, relay_number:int, state: bool):
         if (relay_number, state) in CMD_DICT:
             command = CMD_DICT[(relay_number, state)]
@@ -43,14 +50,8 @@ class ModbusController:
         for relay in [1, 2, 3]:
             self.switch(relay, False)
         print(f"[INFO] All relays OFF command sent.")
-
-    def _send_command(self, command):
-        try:
-            self.ser.write(bytearray(command))
-            print(f"[INFO] Command sent: {command}")
-        except Exception as e:
-            print(f"[ERROR] Failed to send command: {e}")
     
     def close(self):
-        self.ser.close()
-        print("[INFO] Serial connection closed.")
+        if self.ser.is_open:
+            self.ser.close()
+            print("[INFO] Serial connection closed.")

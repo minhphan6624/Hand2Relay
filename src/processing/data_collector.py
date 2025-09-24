@@ -34,6 +34,7 @@ class GestureDataCollector:
         writer = HandDatasetWriter(
             os.path.join(data_dir, "landmarks_all.csv"))
 
+        # Start video capture
         cap = cv2.VideoCapture(0)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
