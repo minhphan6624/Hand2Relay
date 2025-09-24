@@ -1,5 +1,6 @@
 import time
 import serial
+from hardware.base_controller import HardwareController
 
 # Command Frames
 RELAY1_ON =  [1, 5, 0, 0, 0xFF, 0, 0x8C, 0x3A]  
@@ -20,7 +21,7 @@ CMD_DICT = {
     (3, False): RELAY3_OFF
 }
 
-class ModbusController:
+class ModbusController(HardwareController):
     def __init__(self, port):
         # Initialize serial connection
         self.ser = serial.Serial(port, baudrate=9600, timeout=1)

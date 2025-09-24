@@ -1,6 +1,7 @@
 import serial, time
+from hardware.base_controller import HardwareController
 
-class ESP32Controller:
+class ESP32Controller(HardwareController):
     """
     PC-side controller to talk to ESP32 over USB/UART.
     Sends text-based commands like 'L1:ON', 'ALL:OFF',
@@ -46,4 +47,3 @@ class ESP32Controller:
         if self.ser.is_open:
             self.ser.close()
             print("[INFO] Serial port closed")
-

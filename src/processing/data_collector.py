@@ -49,6 +49,7 @@ class GestureDataCollector:
                 print("Cannot read from camera")
                 break
 
+            frame = cv2.flip(frame, 1) # Mirror the frame
             # Detect the landmarks
             lmks_list, annotated_frame = self.detector.detect_hand(frame)
 
