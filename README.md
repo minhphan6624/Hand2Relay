@@ -29,7 +29,7 @@ This project develops a touchless relay control system using real-time hand gest
    │   ├── base_controller.py  # Abstract base class for hardware controllers
    │   ├── esp32_controller.py # PC-side controller for ESP32 via UART
    │   └── modbus_controller.py# PC-side controller for Modbus RTU via RS485
-  ├── processing/
+   ├── processing/
    │   ├── data_collector.py   # Script for collecting hand gesture data
    │   └── ...                 # Other data processing scripts
    ├── train/
@@ -167,3 +167,6 @@ The `GestureActionMapper` class translates recognized gestures into hardware com
 *   **Low Confidence/Incorrect Gestures**: Ensure consistent lighting, a plain background, and perform gestures clearly. Retrain the model with more diverse data if necessary.
 *   **Debouncing**: The system includes a 1.0-second debounce delay to prevent rapid re-execution of the same gesture.
 * For any other bugs, please excuse the author since the project is still under development nha hihi =)))
+## Documentation + Video Demonstration
+* Documentation and demonstration video is on the way. Stay tuned!
+
