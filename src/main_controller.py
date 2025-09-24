@@ -10,27 +10,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 from common.models import HandLandmarksDetector, HandGestureClassifier, label_dict_from_config_file, normalize_landmarks
 
-# Placeholder for Arduino communication (will be implemented later)
-class ArduinoController:
-    def __init__(self, port: str):
-        print(f"[INFO] Initializing ArduinoController on port {port} (simulated).")
-        self.port = port
-        # In a real scenario, you would open a serial connection here
-        # self.ser = serial.Serial(port, 9600, timeout=1)
-
-    def send_command(self, command: str):
-        print(f"[SIM] Sending command '{command}' to Arduino on {self.port}")
-        # In a real scenario, you would send the command over serial
-        # self.ser.write(command.encode())
-
-    def all_off(self):
-        print(f"[SIM] Sending ALL_OFF command to Arduino on {self.port}")
-        # self.ser.write(b'ALL_OFF')
-
-    def close(self):
-        print(f"[SIM] Closing Arduino connection on {self.port}")
-        # if self.ser: self.ser.close()
-
 class GestureControlSystem:
     def __init__(self, model_path: str, config_path: str, port: str = None, simulate: bool = True):
         self.detector = HandLandmarksDetector()
