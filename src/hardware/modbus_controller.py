@@ -27,10 +27,10 @@ class ModbusController(HardwareController):
         self.ser = serial.Serial(port, baudrate=9600, timeout=1)
         print(f"[INFO] Connected to Modbus device on port {port}")
 
-    def _send_command(self, command):
+    def _send_command(self, cmd):
         try:
-            self.ser.write(bytearray(command))
-            print(f"[INFO] Command sent: {command}")
+            self.ser.write(bytearray(cmd))
+            print(f"[INFO] Command sent: {cmd}")
         except Exception as e:
             print(f"[ERROR] Failed to send command: {e}")
 
