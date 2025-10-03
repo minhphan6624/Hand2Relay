@@ -5,7 +5,7 @@ from pathlib import Path
 from ..common.landmark_detector import HandLandmarksDetector
 from ..common.load_label_dict import load_label_dict
 
-from data_writer import HandDatasetWriter
+from .data_writer import HandDatasetWriter
 
 class GestureDataCollector:
     def __init__(self, config_path="config.yaml"):
@@ -27,25 +27,29 @@ class GestureDataCollector:
         is_recording = False
         frame_count = 0
 
+        # Down-sampling
+        frame_id = 0
+        sample_every = 3 # 10Hz at 30fps
+
         while True:
             ok, frame = cap.read()
             if not ok:
                 print("Cannot read from camera")
                 break
-
+            
+            frame_id += 1
+            # Pre-process the frame
             frame = cv2.flip(frame, 1) # Mirror the frame
             lmks_list, annotated_frame = self.detector.detect_hand(frame) # Detect hand landmarks
 
-            cv2.imshow(
-                "Gesture Collector (press a–f to toggle, q to quit)", annotated_frame)
-
             # If recording is turned on and landmarks are detected, write to file
             if is_recording and lmks_list and current_lbl is not None:
-                writer.add(lmks_list[0], current_lbl)
-                frame_count+=1
+                if frame_id % sample_every == 0:
+                    writer.add(lmks_list[0], current_lbl)
+                    frame_count+=1
 
                 cv2.putText(annotated_frame, f"Recording: {frame_count}",
-                            (10, 70), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0, 255), -1)
+                            (10, 70), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0, 255), 1)
                 cv2.circle(annotated_frame, (50,120), 20, (0,0,255),-1)
 
             # Show whether a hand is detected
@@ -86,6 +90,9 @@ class GestureDataCollector:
                         frame_count = 0
                         gesture_name = self.labels[new_label]
                         print(f"Gesture picked: {gesture_name}")
+
+            cv2.imshow(
+                "Gesture Collector (press a to f to toggle, q to quit)", annotated_frame)
 
         cap.release()
         cv2.destroyAllWindows()
