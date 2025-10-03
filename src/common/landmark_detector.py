@@ -7,6 +7,7 @@ class HandLandmarksDetector:
     """Detect & extract 21 hand landmarks from a frame"""
 
     def __init__(self, detection_confidence=0.7, tracking_confidence=0.5, max_hands=1):
+        # Initialize MediaPipe Hands.
         self._mp_hands = mp.solutions.hands
         self._hands = self._mp_hands.Hands(
             static_image_mode=False,
@@ -17,7 +18,16 @@ class HandLandmarksDetector:
         self._drawer = mp.solutions.drawing_utils
 
     def detect_hand(self, frame: np.ndarray) -> Tuple[Optional[List[List[float]]], np.ndarray]:
-        """Return (list_of_flat_63_lists or None, annotated_frame)"""
+        """
+        Detect hand landmarks in the given frame.
+        Args:
+            frame (np.ndarray): The input image frame in BGR format.
+        Returns:
+            Tuple[Optional[List[List[float]]], np.ndarray]: A tuple containing:
+                - A list of lists of 63 floats (x, y, z for 21 landmarks) for each detected hand,
+                  or None if no hands are detected.
+                - The annotated image frame with landmarks drawn.
+        """
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self._hands.process(rgb)
         annotated = frame.copy()

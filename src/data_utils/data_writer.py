@@ -14,20 +14,26 @@ class HandDatasetWriter:
 
         os.makedirs(os.path.dirname(new_csv_path), exist_ok=True)
 
-        
-        self.f = open(new_csv_path, "w", newline="", encoding="utf-8")
-        self.w = csv.writer(self.f)
-        
+        self.file = open(new_csv_path, "w", newline="", encoding="utf-8")
+        self.writer = csv.writer(self.file)
+
         header = [f"{ax}{i}" for i in range(21) for ax in ("x", "y", "z")]
-        self.w.writerow(header + ["label"])
+        self.writer.writerow(header + ["label"])
+        
         self.count = 0
 
     def add(self, landmarks: List[float], label: int):
+        """
+        Validate and add a new sample to the dataset.
+        Args:
+            landmarks (List[float]): A list of 63 floats representing 21 3D landmarks.
+            label (int): The label associated with the landmarks.
+        """
         if len(landmarks) != 63:
             raise ValueError("Expect 63 floats (21*3).")
-        self.w.writerow(landmarks + [label])
+        self.writer.writerow(landmarks + [label])
         self.count += 1
 
     def close(self):
-        self.f.close()
+        self.file.close()
         print(f"[INFO] wrote {self.count} samples.")
