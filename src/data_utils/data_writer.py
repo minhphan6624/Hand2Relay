@@ -3,7 +3,6 @@ import csv
 from typing import List
 from datetime import datetime
 
-
 class HandDatasetWriter:
     """Write 63 landmark features + labels to a csv file"""
 

@@ -7,7 +7,7 @@ import sys
 from typing import List
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from src.common.models import normalize_landmarks
+from common.normalize_landmarks import normalize_landmarks
 
 
 def augment_landmarks(landmarks_flat: np.ndarray, noise_std: float = 0.01, max_rotation_deg: float = 25.0, num_augmentations: int = 5) -> List[np.ndarray]:
@@ -54,7 +54,7 @@ def augment_landmarks(landmarks_flat: np.ndarray, noise_std: float = 0.01, max_r
 
     return augmented_samples
 
-def prepare_data_for_training(input_csv_path: str = 'src/data/landmarks_all.csv',
+def run_pipeline(input_csv_path: str = 'src/data/landmarks_all.csv',
                               output_dir: str = 'src/data/'):
     """
     Loads, preprocesses (normalizes), and splits hand gesture data into training, validation, and test sets.
@@ -171,4 +171,4 @@ def prepare_data_for_training(input_csv_path: str = 'src/data/landmarks_all.csv'
     print(f"- {os.path.join(output_dir, 'landmarks_test.csv')}")
 
 if __name__ == "__main__":
-    prepare_data_for_training()
+    run_pipeline()

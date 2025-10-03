@@ -1,17 +1,14 @@
 import cv2
 import os
-import argparse
 
-# Add project root to path for cross-folder imports
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from ..common.landmark_detector import HandLandmarksDetector
+from ..common.load_label_dict import label_dict_from_config_file
 
-from common.models import HandLandmarksDetector, label_dict_from_config_file
 from data_writer import HandDatasetWriter
 
 class GestureDataCollector:
     def __init__(self, config_path="config.yaml"):
+        
         # Construct the absolute path to config.yaml relative to this script's location
         script_dir = os.path.dirname(__file__)
         abs_config_path = os.path.join(script_dir, "..", "..", config_path)
