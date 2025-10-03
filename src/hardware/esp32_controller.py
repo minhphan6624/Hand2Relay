@@ -1,5 +1,5 @@
 import serial, time
-from hardware.base_controller import HardwareController
+from .base_controller import HardwareController
 
 class ESP32Controller(HardwareController):
     """

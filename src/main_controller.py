@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 from common.landmark_detector import HandLandmarksDetector
 from common.gesture_classifier import HandGestureClassifier
-from common.load_label_dict import label_dict_from_config_file
+from common.load_label_dict import load_label_dict
 from common.normalize_landmarks import normalize_landmarks
 
 from common.gesture_action_mapper import GestureActionMapper
@@ -22,13 +22,15 @@ class GestureControlSystem:
     def __init__(self, model_path: str, config_path: str = 'config.yaml', port: str = None, simulation: bool = True, mode: str = 'esp32'):
         
         self.detector = HandLandmarksDetector()
-        self.labels = label_dict_from_config_file(config_path)
+        self.labels = load_label_dict(config_path)
         self.num_classes = len(self.labels)
         if self.num_classes == 0:
             raise ValueError("No gestures found in config file or config file not found.")
 
+        # Load model using trained weights
         self.model = HandGestureClassifier(60, self.num_classes) 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("mps" if torch.backends.mps.is_available() else
+                                "cuda" if torch.cuda.is_available() else "cpu")
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.model.to(self.device)
         self.model.eval()
@@ -50,6 +52,7 @@ class GestureControlSystem:
         
         self.action_mapper = GestureActionMapper(hardware_controller, self.labels)
 
+        # For debouncing gesture actions
         self.last_executed_gesture = "None"
         self.last_execution_time = time.time()
         self.debounce_delay = 1.0 # seconds to prevent rapid re-execution of the same gesture
@@ -58,6 +61,8 @@ class GestureControlSystem:
         """
         Executes the action mapped to the recognized gesture, with debouncing.
         """
+
+        # Debounce: ignore if same gesture within delay period
         if gesture_name == self.last_executed_gesture and (time.time() - self.last_execution_time) < self.debounce_delay:
             return 
 
@@ -126,7 +131,7 @@ class GestureControlSystem:
 
 def main():
     parser = argparse.ArgumentParser(description="Real-time Hand Gesture Control System")
-    parser.add_argument('--model', type=str, default='src/train/models/hand_gesture_model.pth',
+    parser.add_argument('--model-path', type=str, required=True,
                         help='Path to the trained model .pth file')
     parser.add_argument('--config', type=str, default='config.yaml',
                         help='Path to the configuration YAML file')
