@@ -10,7 +10,8 @@ from typing import List
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from common.normalize_landmarks import normalize_landmarks
 
-def augment_landmarks(landmarks_flat: np.ndarray, noise_std: float = 0.01, max_rotation_deg: float = 25.0, num_augmentations: int = 5) -> List[np.ndarray]:
+def augment_landmarks(landmarks_flat: np.ndarray, noise_std: float = 0.01, 
+                      max_rotation_deg: float = 25.0, num_augmentations: int = 5) -> List[np.ndarray]:
     """
     Applies random noise and rotation to a single set of normalized landmarks to create augmented samples.
     Input:
@@ -114,7 +115,7 @@ def run_pipeline(input_path: str = 'src/data/landmarks_all.csv',
 
     # --- 4. Data Cleaning and Scaling ---
     print("\n--- 4. Data Cleaning and Scaling ---")
-    
+
     # Drop rows with any NaN values that might have appeared during initial processing
     # This is crucial as StandardScaler cannot handle NaNs
     initial_rows = X.shape[0]
