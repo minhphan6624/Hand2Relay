@@ -2,23 +2,25 @@ import torch
 from torch.utils.data import DataLoader
 from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
-import yaml
 import os
 import argparse
 from sklearn.metrics import classification_report
 
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import custom modules
-from common.models import HandGestureClassifier, label_dict_from_config_file
+from ..common.load_label_dict import label_dict_from_config_file
+from ..common.gesture_classifier import HandGestureClassifier
+
 from early_stopper import EarlyStopper
-from custom_dataset import HandGestureDataset
+from .get_dataloaders import get_dataloaders
+
 
 class HandGestureTrainer:
     """Trainer class for the Hand Gesture Recognition model."""
-    def __init__(self, model_path: str, config_path: str, device: str = 'cpu'):
+    def __init__(self, data_path: str, model_path: str, config_path: str, device: str = 'cpu'):
         self.config_path = config_path
         self.model_path = model_path
         self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
@@ -31,24 +33,16 @@ class HandGestureTrainer:
             raise ValueError("No gestures found in config file or config file not found.")
 
         # Initialize model
-        self.model = HandGestureClassifier(input_size=60, num_classes=self.num_classes).to(self.device) # Changed input_size to 60
+        self.model = HandGestureClassifier(input_size=60, num_classes=self.num_classes).to(self.device) # 
         self.criterion = CrossEntropyLoss()
         self.optimizer = Adam(self.model.parameters(), lr=0.001)
-        self.early_stopper = EarlyStopper(patience=20, min_delta=0.001) # Adjusted patience and delta
+        self.early_stopper = EarlyStopper(patience=20, min_delta=0.001) 
 
-    def load_datasets(self, train_csv: str, val_csv: str, test_csv: str, batch_size: int = 64):
-        """Loads datasets and creates DataLoaders."""
-        train_dataset = HandGestureDataset(train_csv)
-        val_dataset = HandGestureDataset(val_csv)
-        test_dataset = HandGestureDataset(test_csv)
 
-        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-        self.test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-
-        print(f"Loaded datasets: Train ({len(train_dataset)}), Val ({len(val_dataset)}), Test ({len(test_dataset)})")
-
-    def train_epoch(self):
+        loaders = get_dataloaders(data_path, batch_size=64)
+        self.train_loader, self.val_loader, self.test_loader = loaders
+    
+    def _train_epoch(self):
         """Trains the model for one epoch."""
         self.model.train()
         running_loss = 0.0
@@ -73,7 +67,7 @@ class HandGestureTrainer:
         epoch_acc = correct_predictions / total_samples
         return epoch_loss, epoch_acc
 
-    def validate_epoch(self):
+    def _validate_epoch(self):
         """Validates the model for one epoch."""
         self.model.eval()
         running_loss = 0.0
@@ -99,8 +93,8 @@ class HandGestureTrainer:
         """Trains the model for a specified number of epochs."""
         print(f"Starting training for {epochs} epochs...")
         for epoch in range(epochs):
-            train_loss, train_acc = self.train_epoch()
-            val_loss, val_acc = self.validate_epoch()
+            train_loss, train_acc = self._train_epoch()
+            val_loss, val_acc = self._validate_epoch()
 
             print(f"Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
@@ -128,7 +122,8 @@ class HandGestureTrainer:
 
         # Generate classification report
         # Map numerical labels back to gesture names for the report
-        gesture_names = [self.label_map.get(i, str(i)) for i in sorted(self.label_map.keys())]
+        gesture_names = [self.label_map.get(i, str(i)) 
+                         for i in sorted(self.label_map.keys())]
         # Ensure the report uses the correct order of classes
         # We need to map the predicted/actual numerical labels to the sorted gesture names
         # For classification_report, we need the numerical labels and the target_names
@@ -162,7 +157,6 @@ class HandGestureTrainer:
             f.write(report)
         print(f"Classification report saved to {report_path}")
 
-
     def save_model(self):
         """Saves the trained model's state dictionary."""
         os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
@@ -171,11 +165,9 @@ class HandGestureTrainer:
 
 def main():
     parser = argparse.ArgumentParser(description="Train Hand Gesture Recognition Model")
-    parser.add_argument('--train_data', type=str, default='src/data/landmarks_train.csv', help='Path to training data CSV')
-    parser.add_argument('--val_data', type=str, default='src/data/landmarks_val.csv', help='Path to validation data CSV')
-    parser.add_argument('--test_data', type=str, default='src/data/landmarks_test.csv', help='Path to test data CSV')
+    parser.add_argument('--data_path', type=str, default='src/data/', help='Path to data directory containing CSV files')
     parser.add_argument('--config', type=str, default='config.yaml', help='Path to config file')
-    parser.add_argument('--model_save_path', type=str, default='src/train/models/hand_gesture_model.pth', help='Path to save the trained model')
+    parser.add_argument('--model_save_path', type=str, default='src/trained_models/hand_gesture_model.pth', help='Path to save the trained model')
     parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for data loaders')
     parser.add_argument('--device', type=str, default='cuda', help='Device to use for training (cuda or cpu)')
@@ -188,8 +180,7 @@ def main():
         print(f"Looking for: {args.train_data}, {args.val_data}, {args.test_data}, {args.config}")
         return
 
-    trainer = HandGestureTrainer(model_path=args.model_save_path, config_path=args.config, device=args.device)
-    trainer.load_datasets(args.train_data, args.val_data, args.test_data, args.batch_size)
+    trainer = HandGestureTrainer(data_path=args.data_path, model_path=args.model_save_path, config_path=args.config, device=args.device)
     trainer.train(epochs=args.epochs)
     trainer.test_model()
 

@@ -7,8 +7,13 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
-from common.models import HandLandmarksDetector, HandGestureClassifier, label_dict_from_config_file, normalize_landmarks
+from common.landmark_detector import HandLandmarksDetector
+from common.gesture_classifier import HandGestureClassifier
+from common.load_label_dict import label_dict_from_config_file
+from common.normalize_landmarks import normalize_landmarks
+
 from common.gesture_action_mapper import GestureActionMapper
+
 from hardware.base_controller import HardwareController
 from hardware.esp32_controller import ESP32Controller
 from hardware.modbus_controller import ModbusController
@@ -50,7 +55,9 @@ class GestureControlSystem:
         self.debounce_delay = 1.0 # seconds to prevent rapid re-execution of the same gesture
 
     def _execute_gesture_action(self, gesture_name: str):
-        # Debounce: prevent rapid re-execution
+        """
+        Executes the action mapped to the recognized gesture, with debouncing.
+        """
         if gesture_name == self.last_executed_gesture and (time.time() - self.last_execution_time) < self.debounce_delay:
             return 
 
