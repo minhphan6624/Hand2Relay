@@ -1,6 +1,5 @@
-import time
 import serial
-from hardware.base_controller import HardwareController
+from .base_controller import HardwareController
 
 # Command Frames
 RELAY1_ON =  [1, 5, 0, 0, 0xFF, 0, 0x8C, 0x3A]  
@@ -27,10 +26,10 @@ class ModbusController(HardwareController):
         self.ser = serial.Serial(port, baudrate=9600, timeout=1)
         print(f"[INFO] Connected to Modbus device on port {port}")
 
-    def _send_command(self, command):
+    def _send_command(self, cmd):
         try:
-            self.ser.write(bytearray(command))
-            print(f"[INFO] Command sent: {command}")
+            self.ser.write(bytearray(cmd))
+            print(f"[INFO] Command sent: {cmd}")
         except Exception as e:
             print(f"[ERROR] Failed to send command: {e}")
 
