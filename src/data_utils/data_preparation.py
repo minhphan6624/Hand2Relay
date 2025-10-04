@@ -8,50 +8,45 @@ from typing import List
 
 from ..common.normalize_landmarks import normalize_landmarks
 
-def augment_landmarks(landmarks_flat: np.ndarray, noise_std: float = 0.01, 
-                      max_rotation_deg: float = 25.0, num_augmentations: int = 5) -> List[np.ndarray]:
+def augment_landmarks_single(landmarks_flat: np.ndarray, noise_std: float = 0.01, 
+                             max_rotation_deg: float = 25.0) -> np.ndarray:
     """
-    Applies random noise and rotation to a single set of normalized landmarks to create augmented samples.
+    Applies random noise and rotation to a single set of normalized landmarks to create one augmented sample.
     Input:
         landmarks_flat: A 1D numpy array of 60 normalized landmark coordinates (x1,y1,z1, ...).
         noise_std: Standard deviation of Gaussian noise to add.
         max_rotation_deg: Maximum rotation angle in degrees.
-        num_augmentations: Number of augmented samples to generate per original sample.
     Output:
-        A list of augmented 1D numpy arrays.
+        A single augmented 1D numpy array.
     """
-    augmented_samples = []
     original_landmarks_3d = landmarks_flat.reshape(-1, 3) # Reshape to (20, 3)
 
-    for _ in range(num_augmentations):
-        # Add Gaussian noise
-        noise = np.random.normal(0, noise_std, original_landmarks_3d.shape)
-        noisy_landmarks = original_landmarks_3d + noise
+    # Add Gaussian noise
+    noise = np.random.normal(0, noise_std, original_landmarks_3d.shape)
+    noisy_landmarks = original_landmarks_3d + noise
 
-        # Apply random rotation
-        angle_x = np.random.uniform(-max_rotation_deg, max_rotation_deg)
-        angle_y = np.random.uniform(-max_rotation_deg, max_rotation_deg)
-        angle_z = np.random.uniform(-max_rotation_deg, max_rotation_deg)
+    # Apply random rotation
+    angle_x = np.random.uniform(-max_rotation_deg, max_rotation_deg)
+    angle_y = np.random.uniform(-max_rotation_deg, max_rotation_deg)
+    angle_z = np.random.uniform(-max_rotation_deg, max_rotation_deg)
 
-        # Rotation matrices
-        Rx = np.array([[1, 0, 0],
-                       [0, np.cos(np.deg2rad(angle_x)), -np.sin(np.deg2rad(angle_x))],
-                       [0, np.sin(np.deg2rad(angle_x)), np.cos(np.deg2rad(angle_x))]])
-        Ry = np.array([[np.cos(np.deg2rad(angle_y)), 0, np.sin(np.deg2rad(angle_y))],
-                       [0, 1, 0],
-                       [-np.sin(np.deg2rad(angle_y)), 0, np.cos(np.deg2rad(angle_y))]])
-        Rz = np.array([[np.cos(np.deg2rad(angle_z)), -np.sin(np.deg2rad(angle_z)), 0],
-                       [np.sin(np.deg2rad(angle_z)), np.cos(np.deg2rad(angle_z)), 0],
-                       [0, 0, 1]])
-        
-        # Combine rotations (order matters: ZYX)
-        R = Rz @ Ry @ Rx
-        
-        rotated_landmarks = np.dot(noisy_landmarks, R.T) # Apply rotation
+    # Rotation matrices
+    Rx = np.array([[1, 0, 0],
+                   [0, np.cos(np.deg2rad(angle_x)), -np.sin(np.deg2rad(angle_x))],
+                   [0, np.sin(np.deg2rad(angle_x)), np.cos(np.deg2rad(angle_x))]])
+    Ry = np.array([[np.cos(np.deg2rad(angle_y)), 0, np.sin(np.deg2rad(angle_y))],
+                   [0, 1, 0],
+                   [-np.sin(np.deg2rad(angle_y)), 0, np.cos(np.deg2rad(angle_y))]])
+    Rz = np.array([[np.cos(np.deg2rad(angle_z)), -np.sin(np.deg2rad(angle_z)), 0],
+                   [np.sin(np.deg2rad(angle_z)), np.cos(np.deg2rad(angle_z)), 0],
+                   [0, 0, 1]])
+    
+    # Combine rotations (order matters: ZYX)
+    R = Rz @ Ry @ Rx
+    
+    rotated_landmarks = np.dot(noisy_landmarks, R.T) # Apply rotation
 
-        augmented_samples.append(rotated_landmarks.flatten())
-
-    return augmented_samples
+    return rotated_landmarks.flatten()
 
 def run_pipeline(input_path: str = 'src/data/landmarks_all.csv',
                               output_dir: str = 'src/data/'):
@@ -75,6 +70,10 @@ def run_pipeline(input_path: str = 'src/data/landmarks_all.csv',
     X = df.drop('label', axis=1)
     y = df['label']
 
+    # Ensure all feature columns are numeric before normalization
+    X = X.apply(pd.to_numeric, errors='coerce')
+    X = X.dropna() # Drop any rows that became NaN after conversion
+
     # Apply normalization to each row
     X_normalized_features = X.apply(normalize_landmarks, axis=1, result_type='expand')
     X_normalized_features = X_normalized_features.iloc[:, 3:] # Drop the first 3 columns (x0,y0,z0)
@@ -87,29 +86,55 @@ def run_pipeline(input_path: str = 'src/data/landmarks_all.csv',
 
     print(f"Feature engineering completed. Shape of normalized features: {X.shape}")
 
-    # --- 3. Data Augmentation ---
-    print("--- 3. Data Augmentation ---")
-    augmented_X = []
-    augmented_y = []
-    
-    # Iterate through each original sample and augment it
-    for idx in range(len(X)):
-        original_sample = X.iloc[idx].values
-        original_label = y.iloc[idx]
+    # --- 3. Data Augmentation (Targeted Oversampling) ---
+    print("\n--- 3. Data Augmentation (Targeted Oversampling) ---")
+
+    # Combine features and labels to easily work with them
+    combined_df = pd.concat([X, y], axis=1)
+
+    # Calculate class distribution
+    class_counts = combined_df['label'].value_counts()
+    max_samples = class_counts.max()
+    print(f"Original class distribution:\n{class_counts}")
+    print(f"Target sample count per class (balancing to max): {max_samples}")
+
+    augmented_samples_list = [] # Renamed to avoid conflict with augment_landmarks_single output
+    # Iterate over each class and its sample count
+    for class_label, count in class_counts.items():
+        # If the class is a minority class
+        if count < max_samples:
+            samples_to_generate = max_samples - count
+            print(f"Class {class_label}: Augmenting with {samples_to_generate} new samples.")
+            
+            # Get all original samples for the current minority class
+            minority_class_samples = combined_df[combined_df['label'] == class_label].drop('label', axis=1)
+            
+            # Generate the required number of new samples
+            for _ in range(samples_to_generate):
+                # Randomly pick one sample from the minority class to augment
+                random_sample = minority_class_samples.sample(1).iloc[0].values
+                
+                # Generate ONE new augmented sample
+                new_sample = augment_landmarks_single(random_sample) 
+                
+                # Store the new sample and its label
+                augmented_samples_list.append(list(new_sample) + [class_label])
+
+    # Create a new DataFrame from the augmented samples
+    if augmented_samples_list:
+        augmented_df = pd.DataFrame(augmented_samples_list, columns=combined_df.columns)
         
-        # Add original sample
-        augmented_X.append(original_sample)
-        augmented_y.append(original_label)
+        # Concatenate the original data with the new augmented data
+        balanced_df = pd.concat([combined_df, augmented_df], ignore_index=True)
+    else:
+        balanced_df = combined_df
 
-        # Generate augmented samples
-        augmented_samples = augment_landmarks(original_sample, num_augmentations=5) # Generate 5 augmented samples
-        for aug_sample in augmented_samples:
-            augmented_X.append(aug_sample)
-            augmented_y.append(original_label)
+    # Separate features and labels again
+    X = balanced_df.drop('label', axis=1)
+    y = balanced_df['label']
 
-    X = pd.DataFrame(augmented_X, columns=X.columns)
-    y = pd.Series(augmented_y, name='label')
-    print(f"Data augmentation complete. New dataset shape: {X.shape}")
+    print(f"Data augmentation complete. New balanced dataset shape: {X.shape}")
+    print(f"New class distribution:\n{y.value_counts()}")
 
     # --- 4. Data Cleaning and Scaling ---
     print("\n--- 4. Data Cleaning and Scaling ---")
@@ -123,10 +148,6 @@ def run_pipeline(input_path: str = 'src/data/landmarks_all.csv',
     y = df_cleaned['label']
     if df_cleaned.shape[0] < initial_rows:
         print(f"Dropped {initial_rows - df_cleaned.shape[0]} rows containing NaN values.")
-
-    # Ensure all feature columns are numeric before scaling
-    X = X.apply(pd.to_numeric, errors='coerce')
-    X = X.dropna() # Drop any rows that became NaN after conversion
 
     # Apply Standard Scaling
     scaler = StandardScaler()
@@ -151,6 +172,15 @@ def run_pipeline(input_path: str = 'src/data/landmarks_all.csv',
     print(f"Training set shape: {X_train.shape}, Labels shape: {y_train.shape}")
     print(f"Validation set shape: {X_val.shape}, Labels shape: {y_val.shape}")
     print(f"Test set shape: {X_test.shape}, Labels shape: {y_test.shape}")
+
+    # --- 6. Class Balance Inspection ---
+    print("\n--- 6. Class Balance Inspection ---")
+    print("Class balance in training set:")
+    print(y_train.value_counts())
+    print("\nClass balance in validation set:")
+    print(y_val.value_counts())
+    print("\nClass balance in test set:")
+    print(y_test.value_counts())
 
     # Combine features and labels for saving, ensuring index alignment
     train_df = pd.concat([X_train.reset_index(drop=True), y_train.reset_index(drop=True)], axis=1)
