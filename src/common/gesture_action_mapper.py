@@ -1,5 +1,5 @@
 from typing import Dict
-from hardware.base_controller import HardwareController
+from ..hardware.base_controller import HardwareController
 
 class GestureActionMapper:
     """

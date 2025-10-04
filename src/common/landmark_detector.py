@@ -6,13 +6,13 @@ from typing import List, Tuple, Optional
 class HandLandmarksDetector:
     """Detect & extract 21 hand landmarks from a frame"""
 
-    def __init__(self, detection_confidence=0.7, tracking_confidence=0.5, max_hands=1):
+    def __init__(self, confidence_threshold=0.7, tracking_confidence=0.5, max_hands=1):
         # Initialize MediaPipe Hands.
         self._mp_hands = mp.solutions.hands
         self._hands = self._mp_hands.Hands(
             static_image_mode=False,
             max_num_hands=max_hands,
-            min_detection_confidence=detection_confidence,
+            min_detection_confidence=confidence_threshold,
             min_tracking_confidence=tracking_confidence
         )
         self._drawer = mp.solutions.drawing_utils

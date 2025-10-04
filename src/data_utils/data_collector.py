@@ -2,6 +2,8 @@ import cv2
 import os
 from pathlib import Path
 
+import yaml
+
 from ..common.landmark_detector import HandLandmarksDetector
 from ..common.load_label_dict import load_label_dict
 
@@ -10,7 +12,10 @@ from .data_writer import HandDatasetWriter
 class GestureDataCollector:
     def __init__(self, config_path="config.yaml"):
         self.labels = load_label_dict(config_path)
-        self.detector = HandLandmarksDetector()
+
+        with open(config_path, "r", encoding="utf-8") as f:
+            confidence_threshold = yaml.safe_load(f).get("sensor_settings", {}).get("confidence_threshold", 0.7)
+        self.detector = HandLandmarksDetector(confidence_threshold=confidence_threshold)
 
     def collect(self, data_dir="src/data"):
         os.makedirs(data_dir, exist_ok=True)

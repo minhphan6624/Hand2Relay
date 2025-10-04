@@ -20,8 +20,11 @@ class HandGestureClassifier(nn.Module):
     # Predict class with thresholding
     @torch.no_grad()
     def predict(self, x, thresh=0.7):
-        probs = torch.softmax(self.forward(x), dim=1) # Run forward pass and get probabilities
-        
-        max_p, pred = torch.max(probs, 1) # Returns the highest probability in the probs tensor and its index (class)
+        outputs = self.forward(x)
+        probs = torch.softmax(outputs, dim=1) 
 
-        return pred if max_p.item() >= thresh else torch.tensor(-1) # Return the class index if above threshold, else -1
+        # Returns the highest probability and its index
+        max_p, pred = torch.max(probs, 1) 
+
+        # Return the class index if above threshold, else -1
+        return pred if max_p.item() >= thresh else torch.tensor(-1) 
