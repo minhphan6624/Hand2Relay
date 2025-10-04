@@ -7,11 +7,11 @@ import argparse
 from sklearn.metrics import classification_report
 
 # Import custom modules
-from ..common.load_label_dict import label_dict_from_config_file
+from ..common.load_label_dict import load_label_dict
 from ..common.gesture_classifier import HandGestureClassifier
 
-from early_stopper import EarlyStopper
-from get_dataloaders import get_dataloaders
+from .early_stopper import EarlyStopper
+from .get_dataloaders import get_dataloaders
 
 class HandGestureTrainer:
     """
@@ -26,7 +26,7 @@ class HandGestureTrainer:
 
         # Load configuration and determine number of classes
         self.config_path = config_path
-        self.label_map = label_dict_from_config_file(self.config_path)
+        self.label_map = load_label_dict(self.config_path)
         self.num_classes = len(self.label_map)
         if self.num_classes == 0:
             raise ValueError("No gestures found in config file or config file not found.")
@@ -103,12 +103,12 @@ class HandGestureTrainer:
         avg_acc = correct_predictions / total_samples
         return avg_loss, avg_acc
 
-    def train(self, epochs: int = 100, train_loader=None, val_loader=None):
+    def fit(self, epochs: int = 100, train_loader=None, val_loader=None):
         """Trains the model for a specified number of epochs."""
         print(f"Starting training for {epochs} epochs...")
         for epoch in range(epochs):
-            train_loss, train_acc = self._train_epoch()
-            val_loss, val_acc = self._validate_epoch()
+            train_loss, train_acc = self._train_epoch(train_loader=train_loader)
+            val_loss, val_acc = self._validate_epoch(val_loader=val_loader)
 
             print(f"Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
@@ -119,27 +119,31 @@ class HandGestureTrainer:
         print("Training finished.")
         self.save_model()
 
-    def test_model(self, test_loader=None):
+    @torch.no_grad()
+    def evaluate(self, test_loader=None):
         """Tests the trained model on the test set."""
         print("\n--- Evaluating model on test set ---")
         self.model.eval()
         all_preds = []
         all_labels = []
 
-        with torch.no_grad():
-            for data, labels in test_loader:
-                data, labels = data.to(self.device), labels.to(self.device)
-                outputs = self.model(data)
-                _, predicted = torch.max(outputs.data, 1)
-                all_preds.extend(predicted.cpu().numpy())
-                all_labels.extend(labels.cpu().numpy())
+        for data, labels in test_loader:
+            data, labels = data.to(self.device), labels.to(self.device)
+
+            outputs = self.model(data)
+            _, predicted = torch.max(outputs.data, 1)
+            
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
 
         # Generate classification report
         # Map numerical labels back to gesture names for the report
         gesture_names = [self.label_map.get(i, str(i)) 
                          for i in sorted(self.label_map.keys())]
+        
         # Ensure the report uses the correct order of classes
         # We need to map the predicted/actual numerical labels to the sorted gesture names
+
         # For classification_report, we need the numerical labels and the target_names
         # Let's ensure the labels are sorted numerically and then map to names
         sorted_numerical_labels = sorted(self.label_map.keys())
@@ -161,23 +165,45 @@ class HandGestureTrainer:
             print("No valid predictions or labels to generate report.")
             return
 
-        report = classification_report(filtered_labels, filtered_preds, target_names=gesture_names, zero_division=0)
-        print("\n--- Classification Report ---")
-        print(report)
+        report = classification_report(filtered_labels, filtered_preds, target_names=gesture_names, zero_division=0, output_dict=True)
+        
+        # Extract core metrics
+        accuracy = report['accuracy']
+        # For precision, recall, f1-score, we can take the weighted average
+        precision = report['weighted avg']['precision']
+        recall = report['weighted avg']['recall']
+        f1_score = report['weighted avg']['f1-score']
+
+        print("\n--- Core Metrics ---")
+        print(f"Accuracy: {accuracy:.4f}")
+        print(f"Precision (weighted avg): {precision:.4f}")
+        print(f"Recall (weighted avg): {recall:.4f}")
+        print(f"F1-Score (weighted avg): {f1_score:.4f}")
+
+        # Convert report back to string for printing and saving
+        report_str = classification_report(filtered_labels, filtered_preds, target_names=gesture_names, zero_division=0)
+        print("\n--- Full Classification Report ---")
+        print(report_str)
 
         # Save the report
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         run_path = os.path.join(self.experiment_path, f'run_{timestamp}')
+        os.makedirs(run_path, exist_ok=True) # Ensure run_path exists
         report_path = os.path.join(run_path, 'classification_report.txt')
         with open(report_path, 'w') as f:
-            f.write(report)
+            f.write("--- Core Metrics ---\n")
+            f.write(f"Accuracy: {accuracy:.4f}\n")
+            f.write(f"Precision (weighted avg): {precision:.4f}\n")
+            f.write(f"Recall (weighted avg): {recall:.4f}\n")
+            f.write(f"F1-Score (weighted avg): {f1_score:.4f}\n")
+            f.write("\n--- Full Classification Report ---\n")
+            f.write(report_str)
         print(f"Classification report saved to {report_path}")
 
     def save_model(self):
         """Saves the trained model's state dictionary."""
 
         # create a new subdirectory for each training run based on timestamp
-        
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         run_path = os.path.join(self.experiment_path, f'run_{timestamp}')
         model_path = os.path.join(run_path, 'model.pth')
@@ -205,8 +231,8 @@ def main():
     loaders = get_dataloaders(data_path=args.data_path, batch_size=args.batch_size)
     train_loader, val_loader, test_loader = loaders
 
-    trainer.train(epochs=args.epochs, train_loader=train_loader, val_loader=val_loader)
-    trainer.test_model()
+    trainer.fit(epochs=args.epochs, train_loader=train_loader, val_loader=val_loader)
+    trainer.evaluate(test_loader=test_loader)
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,5 @@
-import time
 import serial
-from hardware.base_controller import HardwareController
+from .base_controller import HardwareController
 
 # Command Frames
 RELAY1_ON =  [1, 5, 0, 0, 0xFF, 0, 0x8C, 0x3A]  
