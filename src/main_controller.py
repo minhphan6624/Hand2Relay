@@ -3,29 +3,34 @@ import cv2
 import time
 import argparse
 import torch
-import sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
+import yaml
 
-from common.landmark_detector import HandLandmarksDetector
-from common.gesture_classifier import HandGestureClassifier
-from common.load_label_dict import load_label_dict
-from common.normalize_landmarks import normalize_landmarks
 
-from common.gesture_action_mapper import GestureActionMapper
+from .common.landmark_detector import HandLandmarksDetector
+from .common.gesture_classifier import HandGestureClassifier
+from .common.load_label_dict import load_label_dict
+from .common.normalize_landmarks import normalize_landmarks
 
-from hardware.base_controller import HardwareController
-from hardware.esp32_controller import ESP32Controller
-from hardware.modbus_controller import ModbusController
+from .common.gesture_action_mapper import GestureActionMapper
+
+from .hardware.base_controller import HardwareController
+from .hardware.esp32_controller import ESP32Controller
+from .hardware.modbus_controller import ModbusController
 
 class GestureControlSystem:
     def __init__(self, model_path: str, config_path: str = 'config.yaml', port: str = None, simulation: bool = True, mode: str = 'esp32'):
         
-        self.detector = HandLandmarksDetector()
+        # Load gesture labels from config
         self.labels = load_label_dict(config_path)
         self.num_classes = len(self.labels)
         if self.num_classes == 0:
             raise ValueError("No gestures found in config file or config file not found.")
+        
+        # Initialize hand landmark detector 
+        with open(config_path, "r", encoding="utf-8") as f:
+            confidence_threshold = yaml.safe_load(f).get("sensor_settings", {}).get("confidence_threshold", 0.7)
+        self.detector = HandLandmarksDetector(confidence_threshold=confidence_threshold)
 
         # Load model using trained weights
         self.model = HandGestureClassifier(60, self.num_classes) 
@@ -36,6 +41,7 @@ class GestureControlSystem:
         self.model.eval()
         print(f"[INFO] Model loaded from {model_path}")
 
+        # Setup hardware controller
         self.simulation = simulation
         self.mode = mode.lower()
         
@@ -50,6 +56,7 @@ class GestureControlSystem:
             else:
                 raise ValueError(f"Unknown mode: {self.mode}")
         
+        # Define gesture to action mapping
         self.action_mapper = GestureActionMapper(hardware_controller, self.labels)
 
         # For debouncing gesture actions
@@ -81,7 +88,7 @@ class GestureControlSystem:
             return
 
         print("[INFO] Starting real-time gesture recognition. Press 'q' to quit.")
-        print(f"[INFO] Simulation mode: {self.simulate}")
+        print(f"[INFO] Simulation mode: {self.simulation}")
 
         try:
             while True:
@@ -101,12 +108,14 @@ class GestureControlSystem:
                     # Convert to tensor and drop x0, y0, z0 (wrist) features
                     landmarks_tensor = torch.tensor(normalized_lmks[3:]).float().unsqueeze(0)
                     
+                    # Predict gesture
+                    landmarks_tensor = landmarks_tensor.to(self.device)
                     with torch.no_grad():
                         prediction_id = self.model.predict(landmarks_tensor).item()
                     
-                    if prediction_id != -1: # -1 means confidence threshold not met
-                        predicted_gesture_name = self.labels.get(prediction_id, "Unknown")
-                        self._execute_gesture_action(predicted_gesture_name)    
+                    if prediction_id != -1: # If a valid prediction
+                        predicted_gesture_name = self.labels.get(prediction_id, "Unknown") # Map ID to name
+                        self._execute_gesture_action(predicted_gesture_name)               # Execute mapped action
                     else:
                         predicted_gesture_name = "Low Confidence"
 
@@ -131,7 +140,7 @@ class GestureControlSystem:
 
 def main():
     parser = argparse.ArgumentParser(description="Real-time Hand Gesture Control System")
-    parser.add_argument('--model-path', type=str, required=True,
+    parser.add_argument('--model_path', type=str, required=True,
                         help='Path to the trained model .pth file')
     parser.add_argument('--config', type=str, default='config.yaml',
                         help='Path to the configuration YAML file')
@@ -145,8 +154,8 @@ def main():
     args = parser.parse_args()
 
     # Ensure model and config files exist
-    if not os.path.exists(args.model):
-        print(f"[ERROR] Model file not found: {args.model}")
+    if not os.path.exists(args.model_path):
+        print(f"[ERROR] Model file not found: {args.model_path}")
         return
     if not os.path.exists(args.config):
         print(f"[ERROR] Config file not found: {args.config}")
@@ -154,7 +163,7 @@ def main():
 
     try:
         system = GestureControlSystem(
-            model_path=args.model,
+            model_path=args.model_path,
             config_path=args.config,
             port=args.port,
             simulation=args.simulation,
