@@ -140,7 +140,6 @@ def run_pipeline(input_path: str = 'src/data/landmarks_all.csv',
     print("\n--- 4. Data Cleaning and Scaling ---")
 
     # Drop rows with any NaN values that might have appeared during initial processing
-    # This is crucial as StandardScaler cannot handle NaNs
     initial_rows = X.shape[0]
     
     df_cleaned = pd.concat([X, y], axis=1).dropna()
