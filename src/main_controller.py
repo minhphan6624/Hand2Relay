@@ -13,7 +13,6 @@ from .common.load_label_dict import load_label_dict
 from .common.normalize_landmarks import normalize_landmarks
 
 from .common.gesture_action_mapper import GestureActionMapper
-
 from .hardware.base_controller import HardwareController
 from .hardware.esp32_controller import ESP32Controller
 from .hardware.modbus_controller import ModbusController
@@ -140,7 +139,7 @@ class GestureControlSystem:
 
 def main():
     parser = argparse.ArgumentParser(description="Real-time Hand Gesture Control System")
-    parser.add_argument('--model_path', type=str, required=True,
+    parser.add_argument('--model-path', type=str, required=True,
                         help='Path to the trained model .pth file')
     parser.add_argument('--config', type=str, default='config.yaml',
                         help='Path to the configuration YAML file')

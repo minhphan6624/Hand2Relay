@@ -1,4 +1,4 @@
-import serial
+import serial, time
 from .base_controller import HardwareController
 
 # Command frame [SLAVE_ID, 02, AddrHi, AddrLo,  FF/00, 00, CRC_Lo, CRC_Hi] 
@@ -8,16 +8,11 @@ RELAY1_OFF = [1, 5, 0, 0, 0,    0, 0xCD, 0xCA]
 RELAY2_ON =  [1, 5, 0, 1, 0xFF, 0, 0xDD, 0xFA]  
 RELAY2_OFF = [1, 5, 0, 1, 0,    0, 0x9C, 0x0A]  
 
-RELAY3_ON =  [1, 5, 0, 2, 0xFF, 0, 0x2D, 0xFA]  
-RELAY3_OFF = [1, 5, 0, 2, 0,    0, 0x6C, 0x0A]  
-
 CMD_DICT = {
     (1, True): RELAY1_ON,
     (1, False): RELAY1_OFF,
     (2, True): RELAY2_ON,
-    (2, False): RELAY2_OFF,
-    (3, True): RELAY3_ON,
-    (3, False): RELAY3_OFF
+    (2, False): RELAY2_OFF
 }
 
 class ModbusController(HardwareController):
@@ -42,13 +37,15 @@ class ModbusController(HardwareController):
             print(f"[ERROR] Invalid command for Relay {relay_number} {'ON' if state else 'OFF'}.")
 
     def all_on(self):
-        for relay in [1, 2, 3]:
+        for relay in [1, 2]:
             self.switch(relay, True)
+            time.sleep(0.05)
         print(f"[INFO] All relays ON command sent.")
 
     def all_off(self):
-        for relay in [1, 2, 3]:
+        for relay in [1, 2]:
             self.switch(relay, False)
+            time.sleep(0.05)
         print(f"[INFO] All relays OFF command sent.")
     
     def close(self):
